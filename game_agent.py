@@ -112,7 +112,7 @@ class IsolationPlayer:
         positive value large enough to allow the function to return before the
         timer expires.
     """
-    def __init__(self, search_depth=3, score_fn=custom_score, timeout=25.):
+    def __init__(self, search_depth=3, score_fn=custom_score, timeout=10.):
         self.search_depth = search_depth
         self.score = score_fn
         self.time_left = None
@@ -212,36 +212,59 @@ class MinimaxPlayer(IsolationPlayer):
         if self.time_left() < self.TIMER_THRESHOLD:
             raise SearchTimeout()
 
-        # TODO: finish this function!
         return self.max_value(game, depth)[1]
 
     def max_value(self, game, depth):
-        moves_dict = {}
+
+        if self.time_left() < self.TIMER_THRESHOLD:
+            raise SearchTimeout()
+
         moves_list = game.get_legal_moves()
         if(len(moves_list)==0):
             return (float("-inf"),(-1,-1))
+
+        max_value = float("-inf")
+        max_move = (-1,-1)
+
         for move in moves_list:
             new_board = game.forecast_move(move)
+
             if(depth == 1):
-                moves_dict[move] = self.score(new_board, game.active_player)
+                temp_value = self.score(new_board, self)
             else:
-                moves_dict[move] = self.min_value(new_board, depth - 1)[0]
-        max_move = max(moves_dict, key=moves_dict.get)
-        return (moves_dict[max_move], max_move)
+                temp_value = self.min_value(new_board, depth - 1)[0]
+
+            if (temp_value > max_value):
+                max_value = temp_value
+                max_move = move
+
+        return (max_value, max_move)
 
     def min_value(self, game, depth):
-        moves_dict = {}
+
+        if self.time_left() < self.TIMER_THRESHOLD:
+            raise SearchTimeout()
+
         moves_list = game.get_legal_moves()
         if(len(moves_list)==0):
             return (float("inf"),(-1,-1))
+
+        min_value = float("inf")
+        min_move = (-1,-1)
+
         for move in moves_list:
             new_board = game.forecast_move(move)
+
             if(depth == 1):
-                moves_dict[move] = self.score(new_board, game.inactive_player)
+                temp_value = self.score(new_board, self)
             else:
-                moves_dict[move] = self.max_value(new_board, depth - 1)[0]
-        min_move = min(moves_dict, key=moves_dict.get)
-        return (moves_dict[min_move], min_move)
+                temp_value = self.max_value(new_board, depth - 1)[0]
+
+            if (temp_value < min_value):
+                min_value = temp_value
+                min_move = move
+
+        return (min_value, min_move)
 
 class AlphaBetaPlayer(IsolationPlayer):
     """Game-playing agent that chooses a move using iterative deepening minimax
@@ -281,8 +304,22 @@ class AlphaBetaPlayer(IsolationPlayer):
         """
         self.time_left = time_left
 
-        # TODO: finish this function!
-        raise NotImplementedError
+        # Initialize the best move so that this function returns something
+        # in case the search fails due to timeout
+        best_move = (-1, -1)
+
+        try:
+            # The try/except block will automatically catch the exception
+            # raised when the timer is about to expire.
+            search_depth = 1
+            while self.time_left() > self.TIMER_THRESHOLD:
+                best_move = self.alphabeta(game, search_depth, alpha=float("-inf"), beta=float("inf"))
+                search_depth = search_depth + 1
+        except SearchTimeout:
+            return best_move
+
+        # Return the best move from the last completed search iteration
+        return best_move
 
     def alphabeta(self, game, depth, alpha=float("-inf"), beta=float("inf")):
         """Implement depth-limited minimax search with alpha-beta pruning as
@@ -332,5 +369,66 @@ class AlphaBetaPlayer(IsolationPlayer):
         if self.time_left() < self.TIMER_THRESHOLD:
             raise SearchTimeout()
 
-        # TODO: finish this function!
-        raise NotImplementedError
+        return self.max_value(game, depth, alpha, beta)[1]
+
+    def max_value(self, game, depth, alpha, beta):
+
+        if self.time_left() < self.TIMER_THRESHOLD:
+            raise SearchTimeout()
+
+        moves_list = game.get_legal_moves()
+        if(len(moves_list)==0):
+            return (float("-inf"),(-1,-1))
+
+        max_value = float("-inf")
+        max_move = (-1,-1)
+
+        for move in moves_list:
+            new_board = game.forecast_move(move)
+
+            if(depth == 1):
+                temp_value = self.score(new_board, self)
+            else:
+                temp_value = self.min_value(new_board, depth - 1, alpha, beta)[0]
+
+            if (temp_value > max_value):
+                max_value = temp_value
+                max_move = move
+
+            if (temp_value >= beta):
+                return (temp_value, move)
+
+            alpha = max(alpha, temp_value)
+
+        return (max_value, max_move)
+
+    def min_value(self, game, depth, alpha, beta):
+
+        if self.time_left() < self.TIMER_THRESHOLD:
+            raise SearchTimeout()
+
+        moves_list = game.get_legal_moves()
+        if(len(moves_list)==0):
+            return (float("inf"),(-1,-1))
+
+        min_value = float("inf")
+        min_move = (-1,-1)
+
+        for move in moves_list:
+            new_board = game.forecast_move(move)
+
+            if(depth == 1):
+                temp_value = self.score(new_board, self)
+            else:
+                temp_value = self.max_value(new_board, depth - 1, alpha, beta)[0]
+
+            if (temp_value < min_value):
+                min_value = temp_value
+                min_move = move
+
+            if (temp_value <= alpha):
+                return (temp_value, move)
+
+            beta = min(beta, temp_value)
+
+        return (min_value, min_move)
